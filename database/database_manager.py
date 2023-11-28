@@ -43,6 +43,7 @@ class DataHandler:
         self.add_data(xml_data2)
 
     def add_data(self, user_data):
+        """Verify the provided data and then, add it to the database"""
         for user in user_data:
             fixed_phone_num = re.sub(r"\D", "", user["telephone_number"])[-9:]
             # Phone number with trailing zeros, non-digit characters, etc. replaced.
@@ -52,34 +53,41 @@ class DataHandler:
                 and self.validate_phone_num(user["telephone_number"]) is True
                 # Verify that all criteria have been successfully met
             ):
-                self.cursor.execute(
-                    """
-                INSERT INTO users (firstname, telephone_number, email, password, role, created_at, children)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                    (
-                        user["firstname"],
-                        fixed_phone_num,
-                        user["email"],
-                        user["password"],
-                        user["role"],
-                        user["created_at"],
-                        json.dumps(user["children"]),
-                    ),
-                )
-                self.connection.commit(),  # Add record to the database
+                data_repeated = self.check_if_data_is_repeated(user, fixed_phone_num)
+                if not data_repeated:  # Add data if no repetitions were found
+                    self.cursor.execute(
+                        """
+                    INSERT INTO users (firstname, telephone_number, email, password, role, created_at, children)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                        (
+                            user["firstname"],
+                            fixed_phone_num,
+                            user["email"],
+                            user["password"],
+                            user["role"],
+                            user["created_at"],
+                            json.dumps(user["children"]),
+                        ),
+                    )
+                    self.connection.commit(),
 
+                elif data_repeated == 'email_repeated':
+                    """TO DO: CHECK WHICH ENTRY WAS NEWER BASED ON THE TIMESTAMP"""
+                    pass
+                
+                elif data_repeated == 'number_repeated':
+                    """TO DO: CHECK WHICH ENTRY WAS NEWER BASED ON THE TIMESTAMP"""
+                    pass
+                    
             else:
-                "Incorrect data, skipping.."
+                pass
 
     def get_data(self) -> tuple:
         self.execute_query("SELECT * FROM users")
         data = self.cursor.fetchall()
-        for record in data[75:78]:
-            children_list = json.loads(record[7])
-            for child in children_list:
-                print(f'User name: {record[1]}, {child["name"]} {child["age"]}')
-            
+        for record in data:
+            print(record[0], ": ", record[1], ", ", record[3], ", ", record[2])
 
     @classmethod
     def validate_email(cls, email) -> bool:
@@ -100,6 +108,36 @@ class DataHandler:
         if len(digits) == 9:
             return True
         return False
+
+    def check_if_data_is_repeated(self, user_data, phone_num) -> bool:
+        """Check if the e-mail address or phone number was repeated when adding data to the database"""
+
+        self.cursor.execute(
+            """SELECT email
+                        FROM users
+                        WHERE email=?
+                        """,
+            (user_data["email"],),
+        )
+
+        result = self.cursor.fetchone()
+
+        if result:
+            return "email_repeated"
+        else:
+            self.cursor.execute(
+                """SELECT telephone_number
+                        FROM users
+                        WHERE telephone_number=?
+                        """,
+                (phone_num,),
+            )
+            result = self.cursor.fetchone()
+
+            if result:
+                return "number_repeated"
+            else:
+                return False
 
     def execute_query(self, query):
         self.cursor.execute(query)
@@ -148,15 +186,19 @@ class DataParser:
                 user_data["password"] = user.find("password").text
                 user_data["role"] = user.find("role").text
                 user_data["created_at"] = user.find("created_at").text
-                
-                if user.findall(".//child") == []:
-                    user_data['children'] = []
+
+                if (
+                    user.findall(".//child") == []
+                ):  # Set children list to empty when no record was found
+                    user_data["children"] = []
                 else:
                     for child in user.findall(".//child"):
                         child_data = {}
                         child_data["name"] = child.findtext("name")
                         child_data["age"] = child.findtext("age")
-                        user_data["children"] = user_data.get("children", []) + [child_data]
+                        user_data["children"] = user_data.get("children", []) + [
+                            child_data
+                        ]
                 data_containers[i].append(user_data)
 
         return xml_data1, xml_data2
