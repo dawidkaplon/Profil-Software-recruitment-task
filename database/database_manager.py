@@ -2,6 +2,7 @@ import sqlite3
 import json
 import csv
 import re
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
 
@@ -37,6 +38,10 @@ class DataHandler:
         self.add_data(csv_data1)
         self.add_data(csv_data2)
 
+        xml_data1, xml_data2 = db_parser.parse_xml("users_")
+        self.add_data(xml_data1)
+        self.add_data(xml_data2)
+
     def add_data(self, user_data):
         for user in user_data:
             fixed_phone_num = re.sub(r"\D", "", user["telephone_number"])[-9:]
@@ -70,8 +75,11 @@ class DataHandler:
     def get_data(self) -> tuple:
         self.execute_query("SELECT * FROM users")
         data = self.cursor.fetchall()
-        for index, item in enumerate(data, start=1):
-            print(f"{index}: {item}\n")
+        for record in data[75:78]:
+            children_list = json.loads(record[7])
+            for child in children_list:
+                print(f'User name: {record[1]}, {child["name"]} {child["age"]}')
+            
 
     @classmethod
     def validate_email(cls, email) -> bool:
@@ -116,7 +124,42 @@ class DataParser:
             return json_data
 
     def parse_xml(self, filename):
-        pass
+        path1 = manager_directory / "data" / f"{filename}1.xml"
+        path2 = manager_directory / "data" / f"{filename}2.xml"
+
+        xml_data1 = []
+        xml_data2 = []
+
+        tree1 = ET.parse(path1)
+        root1 = tree1.getroot()
+
+        tree2 = ET.parse(path2)
+        root2 = tree2.getroot()
+
+        roots_to_use = [root1, root2]
+        data_containers = [xml_data1, xml_data2]
+
+        for i in range(2):  # DRY :)
+            for user in roots_to_use[i].findall("user"):
+                user_data = {}
+                user_data["firstname"] = user.find("firstname").text
+                user_data["telephone_number"] = user.find("telephone_number").text
+                user_data["email"] = user.find("email").text
+                user_data["password"] = user.find("password").text
+                user_data["role"] = user.find("role").text
+                user_data["created_at"] = user.find("created_at").text
+                
+                if user.findall(".//child") == []:
+                    user_data['children'] = []
+                else:
+                    for child in user.findall(".//child"):
+                        child_data = {}
+                        child_data["name"] = child.findtext("name")
+                        child_data["age"] = child.findtext("age")
+                        user_data["children"] = user_data.get("children", []) + [child_data]
+                data_containers[i].append(user_data)
+
+        return xml_data1, xml_data2
 
     def parse_csv(self, filename):
         path1 = manager_directory / "data" / f"{filename}1.csv"
