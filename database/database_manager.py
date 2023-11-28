@@ -1,9 +1,9 @@
 import sqlite3
 import json
+import csv
 import re
 from datetime import datetime
 from pathlib import Path
-
 
 manager_directory = Path(__file__).resolve().parent
 
@@ -29,53 +29,55 @@ class DataHandler:
             )
         """
         )
-        self.add_parsed_data(db_parser.parse_json("users.json"))
 
-    def add_user(self, user_data):
-        fixed_phone_num = re.sub(r"\D", "", user_data["telephone_number"])[-9:]
-        # phone number with replaced trailing zeros, non-digital chars etc.
+        # Parse the data and populate the database
+        self.add_data(db_parser.parse_json("users.json"))
 
-        self.cursor.execute(
-            """
-            INSERT INTO users (firstname, telephone_number, email, password, role, created_at, children)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-            (
-                user_data["firstname"],
-                fixed_phone_num,
-                user_data["email"],
-                user_data["password"],
-                user_data["role"],
-                user_data["created_at"],
-                json.dumps(user_data["children"]),
-            ),
-        )
+        csv_data1, csv_data2 = db_parser.parse_csv("users_")
+        self.add_data(csv_data1)
+        self.add_data(csv_data2)
 
-        self.connection.commit()  # Add record to the database
+    def add_data(self, user_data):
+        for user in user_data:
+            fixed_phone_num = re.sub(r"\D", "", user["telephone_number"])[-9:]
+            # Phone number with trailing zeros, non-digit characters, etc. replaced.
 
-    def execute_query(self, query):
-        self.cursor.execute(query)
-
-    def get_data(self) -> tuple:
-        self.execute_query("SELECT created_at FROM users")
-        data = self.cursor.fetchall()
-        for item in data:
-            print(item, "\n\n")
-
-    def add_parsed_data(self, json_data, csv_data=0, xml_data=0):
-        for user in json_data:
             if (
                 self.validate_email(user["email"]) is True
                 and self.validate_phone_num(user["telephone_number"]) is True
+                # Verify that all criteria have been successfully met
             ):
-                self.add_user(user)
+                self.cursor.execute(
+                    """
+                INSERT INTO users (firstname, telephone_number, email, password, role, created_at, children)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                    (
+                        user["firstname"],
+                        fixed_phone_num,
+                        user["email"],
+                        user["password"],
+                        user["role"],
+                        user["created_at"],
+                        json.dumps(user["children"]),
+                    ),
+                )
+                self.connection.commit(),  # Add record to the database
+
             else:
                 "Incorrect data, skipping.."
 
+    def get_data(self) -> tuple:
+        self.execute_query("SELECT * FROM users")
+        data = self.cursor.fetchall()
+        for index, item in enumerate(data, start=1):
+            print(f"{index}: {item}\n")
+
     @classmethod
     def validate_email(cls, email) -> bool:
+        """Check if the email meets the criteria in the tasks' Readme file"""
+
         pattern = re.compile("[A-Za-z\d\.\_\+\-]+@[A-Za-z\d\.\_]+\.[A-Za-z\d]{1,4}")
-        # Check if the email meets the criteria in the tasks' Readme file
 
         if re.match(pattern, email):
             return True
@@ -83,12 +85,16 @@ class DataHandler:
 
     @classmethod
     def validate_phone_num(cls, phone_num) -> bool:
+        """Check if the number can meet the criteria i.e. no trailing zeros, non-digital chars, 9-digits long etc."""
+
         digits = re.sub(r"\D", "", phone_num)[-9:]
-        # Check if the number can meet the criteria i.e. no trailing zeros, non-digital chars etc.
 
         if len(digits) == 9:
             return True
         return False
+
+    def execute_query(self, query):
+        self.cursor.execute(query)
 
     def close_connection(self):
         self.connection.close()
@@ -112,13 +118,33 @@ class DataParser:
     def parse_xml(self, filename):
         pass
 
+    def parse_csv(self, filename):
+        path1 = manager_directory / "data" / f"{filename}1.csv"
+        path2 = manager_directory / "data" / f"{filename}2.csv"
+
+        csv_data1 = []
+        csv_data2 = []
+
+        # Parse 1st csv file
+        with open(path1, "r") as csv1:
+            reader1 = csv.DictReader(csv1, delimiter=";")
+            for row in reader1:
+                csv_data1.append(row)
+
+        # Parse 2nd csv file
+        with open(path2, "r") as csv2:
+            reader2 = csv.DictReader(csv2, delimiter=";")
+            for row in reader2:
+                csv_data2.append(row)
+
+        return csv_data1, csv_data2
+
 
 if __name__ == "__main__":
     db_handler = DataHandler("dbsqlite3")
     db_parser = DataParser()
 
     db_handler.create_database()
-
     db_handler.get_data()
 
     # Close the connection if done
