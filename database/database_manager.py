@@ -45,16 +45,21 @@ class DataHandler:
     def add_data(self, user_data):
         """Verify the provided data and then, add it to the database"""
         for user in user_data:
-            fixed_phone_num = re.sub(r"\D", "", user["telephone_number"])[-9:]
+            current_system_time = datetime.now()
+            current_user_time = datetime.strptime(
+                user["created_at"], "%Y-%m-%d %H:%M:%S"
+            )
+
             # Phone number with trailing zeros, non-digit characters, etc. replaced.
+            fixed_phone_num = re.sub(r"\D", "", user["telephone_number"])[-9:]
 
             if (
+                # Verify that all criteria have been successfully met
                 self.validate_email(user["email"]) is True
                 and self.validate_phone_num(user["telephone_number"]) is True
-                # Verify that all criteria have been successfully met
             ):
                 data_repeated = self.check_if_data_is_repeated(user, fixed_phone_num)
-                if not data_repeated:  # Add data if no repetitions were found
+                if not data_repeated:  # Add the data if no repetitions were found
                     self.cursor.execute(
                         """
                     INSERT INTO users (firstname, telephone_number, email, password, role, created_at, children)
@@ -72,22 +77,69 @@ class DataHandler:
                     )
                     self.connection.commit(),
 
-                elif data_repeated == 'email_repeated':
-                    """TO DO: CHECK WHICH ENTRY WAS NEWER BASED ON THE TIMESTAMP"""
-                    pass
-                
-                elif data_repeated == 'number_repeated':
-                    """TO DO: CHECK WHICH ENTRY WAS NEWER BASED ON THE TIMESTAMP"""
-                    pass
-                    
+                elif data_repeated == "email_repeated":
+                    self.cursor.execute(
+                        """
+                        SELECT created_at
+                        FROM users
+                        WHERE email=?
+                        """,
+                        (user["email"],),
+                    )
+                    database_record_time = datetime.strptime(
+                        self.cursor.fetchone()[0], "%Y-%m-%d %H:%M:%S"
+                    )
+
+                    database_record_time_difference = (
+                        current_system_time - database_record_time
+                    )
+                    current_user_time_difference = (
+                        current_system_time - current_user_time
+                    )
+
+                    if database_record_time_difference < current_user_time_difference:
+                        pass
+                    else:  # Newer record was found: replace the old one
+                        self.cursor.execute(
+                            """
+                            UPDATE users
+                            SET firstname=?, telephone_number=?, email=?, password=?, role=?, created_at=?, children=?
+                            WHERE email=?
+                            """,
+                            (
+                                user["firstname"],
+                                fixed_phone_num,
+                                user["email"],
+                                user["password"],
+                                user["role"],
+                                user["created_at"],
+                                json.dumps(user["children"]),
+                                user["email"],
+                            ),
+                        )
+                    self.connection.commit(),
+
+                elif data_repeated == "number_repeated":
+                    self.cursor.execute(
+                        """
+                            UPDATE users
+                            SET firstname=?, telephone_number=?, email=?, password=?, role=?, created_at=?, children=?
+                            WHERE telephone_number=?
+                            """,
+                        (
+                            user["firstname"],
+                            fixed_phone_num,
+                            user["email"],
+                            user["password"],
+                            user["role"],
+                            user["created_at"],
+                            json.dumps(user["children"]),
+                            fixed_phone_num,
+                        ),
+                    )
+                    self.connection.commit(),
             else:
                 pass
-
-    def get_data(self) -> tuple:
-        self.execute_query("SELECT * FROM users")
-        data = self.cursor.fetchall()
-        for record in data:
-            print(record[0], ": ", record[1], ", ", record[3], ", ", record[2])
 
     @classmethod
     def validate_email(cls, email) -> bool:
@@ -109,7 +161,7 @@ class DataHandler:
             return True
         return False
 
-    def check_if_data_is_repeated(self, user_data, phone_num) -> bool:
+    def check_if_data_is_repeated(self, user_data, phone_num):
         """Check if the e-mail address or phone number was repeated when adding data to the database"""
 
         self.cursor.execute(
@@ -138,12 +190,6 @@ class DataHandler:
                 return "number_repeated"
             else:
                 return False
-
-    def execute_query(self, query):
-        self.cursor.execute(query)
-
-    def close_connection(self):
-        self.connection.close()
 
 
 class DataParser:
@@ -189,7 +235,7 @@ class DataParser:
 
                 if (
                     user.findall(".//child") == []
-                ):  # Set children list to empty when no record was found
+                ):  # Set children list to empty when no child was found
                     user_data["children"] = []
                 else:
                     for child in user.findall(".//child"):
@@ -233,4 +279,4 @@ if __name__ == "__main__":
     db_handler.get_data()
 
     # Close the connection if done
-    db_handler.close_connection()
+    db_handler.connection.close()
