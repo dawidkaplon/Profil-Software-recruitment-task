@@ -1,12 +1,9 @@
 import sqlite3
 import json
-import csv
 import re
-import xml.etree.ElementTree as ET
 from datetime import datetime
-from pathlib import Path
 
-manager_directory = Path(__file__).resolve().parent
+from .db_parser import DataParser
 
 
 class DataHandler:
@@ -32,13 +29,13 @@ class DataHandler:
         )
 
         # Parse the data and populate the database
-        self.add_data(db_parser.parse_json("users.json"))
+        self.add_data(DataParser.parse_json("users.json"))
 
-        csv_data1, csv_data2 = db_parser.parse_csv("users_")
+        csv_data1, csv_data2 = DataParser.parse_csv("users_")
         self.add_data(csv_data1)
         self.add_data(csv_data2)
 
-        xml_data1, xml_data2 = db_parser.parse_xml("users_")
+        xml_data1, xml_data2 = DataParser.parse_xml("users_")
         self.add_data(xml_data1)
         self.add_data(xml_data2)
 
@@ -75,7 +72,7 @@ class DataHandler:
                             json.dumps(user["children"]),
                         ),
                     )
-                    self.connection.commit(),
+                    (self.connection.commit(),)
 
                 elif data_repeated == "email_repeated":
                     self.cursor.execute(
@@ -117,7 +114,7 @@ class DataHandler:
                                 user["email"],
                             ),
                         )
-                    self.connection.commit(),
+                    (self.connection.commit(),)
 
                 elif data_repeated == "number_repeated":
                     self.cursor.execute(
@@ -137,7 +134,7 @@ class DataHandler:
                             fixed_phone_num,
                         ),
                     )
-                    self.connection.commit(),
+                    (self.connection.commit(),)
             else:
                 pass
 
@@ -190,93 +187,3 @@ class DataHandler:
                 return "number_repeated"
             else:
                 return False
-
-
-class DataParser:
-    """Class to parse the data from the given .xml, .csv and .json data files"""
-
-    def __init__(self):
-        pass
-
-    def parse_json(self, filename):
-        # Absolute path to the data file
-        path = manager_directory / "data" / filename
-
-        with open(path, "r") as f:
-            json_data = json.load(f)
-
-            return json_data
-
-    def parse_xml(self, filename):
-        path1 = manager_directory / "data" / f"{filename}1.xml"
-        path2 = manager_directory / "data" / f"{filename}2.xml"
-
-        xml_data1 = []
-        xml_data2 = []
-
-        tree1 = ET.parse(path1)
-        root1 = tree1.getroot()
-
-        tree2 = ET.parse(path2)
-        root2 = tree2.getroot()
-
-        roots_to_use = [root1, root2]
-        data_containers = [xml_data1, xml_data2]
-
-        for i in range(2):  # DRY :)
-            for user in roots_to_use[i].findall("user"):
-                user_data = {}
-                user_data["firstname"] = user.find("firstname").text
-                user_data["telephone_number"] = user.find("telephone_number").text
-                user_data["email"] = user.find("email").text
-                user_data["password"] = user.find("password").text
-                user_data["role"] = user.find("role").text
-                user_data["created_at"] = user.find("created_at").text
-
-                if (
-                    user.findall(".//child") == []
-                ):  # Set children list to empty when no child was found
-                    user_data["children"] = []
-                else:
-                    for child in user.findall(".//child"):
-                        child_data = {}
-                        child_data["name"] = child.findtext("name")
-                        child_data["age"] = child.findtext("age")
-                        user_data["children"] = user_data.get("children", []) + [
-                            child_data
-                        ]
-                data_containers[i].append(user_data)
-
-        return xml_data1, xml_data2
-
-    def parse_csv(self, filename):
-        path1 = manager_directory / "data" / f"{filename}1.csv"
-        path2 = manager_directory / "data" / f"{filename}2.csv"
-
-        csv_data1 = []
-        csv_data2 = []
-
-        # Parse 1st csv file
-        with open(path1, "r") as csv1:
-            reader1 = csv.DictReader(csv1, delimiter=";")
-            for row in reader1:
-                csv_data1.append(row)
-
-        # Parse 2nd csv file
-        with open(path2, "r") as csv2:
-            reader2 = csv.DictReader(csv2, delimiter=";")
-            for row in reader2:
-                csv_data2.append(row)
-
-        return csv_data1, csv_data2
-
-
-if __name__ == "__main__":
-    db_handler = DataHandler("dbsqlite3")
-    db_parser = DataParser()
-
-    db_handler.create_database()
-    db_handler.get_data()
-
-    # Close the connection if done
-    db_handler.connection.close()
