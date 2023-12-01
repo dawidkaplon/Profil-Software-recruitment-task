@@ -142,7 +142,7 @@ class DataHandler:
     def validate_email(cls, email) -> bool:
         """Check if the email meets the criteria in the tasks' Readme file"""
 
-        pattern = re.compile("[A-Za-z\d\.\_\+\-]+@[A-Za-z\d\.\_]+\.[A-Za-z\d]{1,4}")
+        pattern = re.compile("^[A-Za-z\d\.\_\+\-]+@[A-Za-z\d\.\_]+\.[A-Za-z\d]{1,4}$")
 
         if re.match(pattern, email):
             return True
