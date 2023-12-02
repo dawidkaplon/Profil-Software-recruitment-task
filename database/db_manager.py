@@ -25,7 +25,7 @@ class DataHandler:
                 created_at DATETIME,
                 children TEXT
             )
-        """
+            """
         )
 
         # Parse the data and populate the database
@@ -40,8 +40,6 @@ class DataHandler:
 
         self.add_data(xml_data1, format='xml')
         self.add_data(xml_data2, format='xml')
-
-        self.get_data()
 
     def add_data(self, user_data, format):
         """Verify the provided data and then, add it to the database"""
@@ -63,7 +61,7 @@ class DataHandler:
                 and self.validate_phone_num(user['telephone_number']) is True
             ):
                 data_repeated = self.check_if_data_is_repeated(user, fixed_phone_num)
-                if not data_repeated:  # Add the data if no repetitions were found
+                if not data_repeated:  # Populate the database if no repetitions were found
                     self.cursor.execute(
                         """
                     INSERT INTO users (firstname, telephone_number, email, password, role, created_at, children)
@@ -142,21 +140,6 @@ class DataHandler:
                         ),
                     )
                     (self.connection.commit(),)
-            else:
-                pass
-
-    def get_data(self):
-        self.cursor.execute(
-            """
-            SELECT children
-            FROM users
-            """
-        )
-
-        result = self.cursor.fetchall()
-
-        for child in result:
-            print(child)
 
     @classmethod
     def validate_email(cls, email) -> bool:
@@ -170,7 +153,10 @@ class DataHandler:
 
     @classmethod
     def validate_phone_num(cls, phone_num) -> bool:
-        """Check if the number can meet the criteria i.e. no trailing zeros, non-digital chars, 9-digits long etc."""
+        """
+        Check if the number after reformat can meet the criteria
+        i.e. no trailing zeros, 9-digits long
+        """
 
         digits = re.sub(r'\D', '', phone_num)[-9:]
 
