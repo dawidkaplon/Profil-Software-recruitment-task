@@ -29,31 +29,38 @@ class DataHandler:
         )
 
         # Parse the data and populate the database
-        self.add_data(DataParser.parse_json("users.json"))
+        json_data = DataParser.parse_json('users.json')
+        csv_data1, csv_data2 = DataParser.parse_csv('users_')
+        xml_data1, xml_data2 = DataParser.parse_xml('users_')
 
-        csv_data1, csv_data2 = DataParser.parse_csv("users_")
-        self.add_data(csv_data1)
-        self.add_data(csv_data2)
+        self.add_data(json_data, format='json')
 
-        xml_data1, xml_data2 = DataParser.parse_xml("users_")
-        self.add_data(xml_data1)
-        self.add_data(xml_data2)
+        self.add_data(csv_data1, format='csv')
+        self.add_data(csv_data2, format='csv')
 
-    def add_data(self, user_data):
+        self.add_data(xml_data1, format='xml')
+        self.add_data(xml_data2, format='xml')
+
+        self.get_data()
+
+    def add_data(self, user_data, format):
         """Verify the provided data and then, add it to the database"""
-        for user in user_data:
+
+        common_data = DataParser.convert_to_common_format(user_data, format)
+
+        for user in common_data:
             current_system_time = datetime.now()
             current_user_time = datetime.strptime(
-                user["created_at"], "%Y-%m-%d %H:%M:%S"
+                user['created_at'], '%Y-%m-%d %H:%M:%S'
             )
 
             # Phone number with trailing zeros, non-digit characters, etc. replaced.
-            fixed_phone_num = re.sub(r"\D", "", user["telephone_number"])[-9:]
+            fixed_phone_num = re.sub(r'\D', '', user['telephone_number'])[-9:]
 
             if (
                 # Verify that all criteria have been successfully met
-                self.validate_email(user["email"]) is True
-                and self.validate_phone_num(user["telephone_number"]) is True
+                self.validate_email(user['email']) is True
+                and self.validate_phone_num(user['telephone_number']) is True
             ):
                 data_repeated = self.check_if_data_is_repeated(user, fixed_phone_num)
                 if not data_repeated:  # Add the data if no repetitions were found
@@ -63,28 +70,28 @@ class DataHandler:
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
                         (
-                            user["firstname"],
+                            user['firstname'],
                             fixed_phone_num,
-                            user["email"],
-                            user["password"],
-                            user["role"],
-                            user["created_at"],
-                            json.dumps(user["children"]),
+                            user['email'],
+                            user['password'],
+                            user['role'],
+                            user['created_at'],
+                            json.dumps(user['children']),
                         ),
                     )
                     (self.connection.commit(),)
 
-                elif data_repeated == "email_repeated":
+                elif data_repeated == 'email_repeated':
                     self.cursor.execute(
                         """
                         SELECT created_at
                         FROM users
                         WHERE email=?
                         """,
-                        (user["email"],),
+                        (user['email'],),
                     )
                     database_record_time = datetime.strptime(
-                        self.cursor.fetchone()[0], "%Y-%m-%d %H:%M:%S"
+                        self.cursor.fetchone()[0], '%Y-%m-%d %H:%M:%S'
                     )
 
                     database_record_time_difference = (
@@ -104,19 +111,19 @@ class DataHandler:
                             WHERE email=?
                             """,
                             (
-                                user["firstname"],
+                                user['firstname'],
                                 fixed_phone_num,
-                                user["email"],
-                                user["password"],
-                                user["role"],
-                                user["created_at"],
-                                json.dumps(user["children"]),
-                                user["email"],
+                                user['email'],
+                                user['password'],
+                                user['role'],
+                                user['created_at'],
+                                json.dumps(user['children']),
+                                user['email'],
                             ),
                         )
                     (self.connection.commit(),)
 
-                elif data_repeated == "number_repeated":
+                elif data_repeated == 'number_repeated':
                     self.cursor.execute(
                         """
                             UPDATE users
@@ -124,13 +131,13 @@ class DataHandler:
                             WHERE telephone_number=?
                             """,
                         (
-                            user["firstname"],
+                            user['firstname'],
                             fixed_phone_num,
-                            user["email"],
-                            user["password"],
-                            user["role"],
-                            user["created_at"],
-                            json.dumps(user["children"]),
+                            user['email'],
+                            user['password'],
+                            user['role'],
+                            user['created_at'],
+                            json.dumps(user['children']),
                             fixed_phone_num,
                         ),
                     )
@@ -138,11 +145,24 @@ class DataHandler:
             else:
                 pass
 
+    def get_data(self):
+        self.cursor.execute(
+            """
+            SELECT children
+            FROM users
+            """
+        )
+
+        result = self.cursor.fetchall()
+
+        for child in result:
+            print(child)
+
     @classmethod
     def validate_email(cls, email) -> bool:
         """Check if the email meets the criteria in the tasks' Readme file"""
 
-        pattern = re.compile("^[A-Za-z\d\.\_\+\-]+@[A-Za-z\d\.\_]+\.[A-Za-z\d]{1,4}$")
+        pattern = re.compile('^[A-Za-z\d\.\_\+\-]+@[A-Za-z\d\.\_]+\.[A-Za-z\d]{1,4}$')
 
         if re.match(pattern, email):
             return True
@@ -152,7 +172,7 @@ class DataHandler:
     def validate_phone_num(cls, phone_num) -> bool:
         """Check if the number can meet the criteria i.e. no trailing zeros, non-digital chars, 9-digits long etc."""
 
-        digits = re.sub(r"\D", "", phone_num)[-9:]
+        digits = re.sub(r'\D', '', phone_num)[-9:]
 
         if len(digits) == 9:
             return True
@@ -166,13 +186,13 @@ class DataHandler:
                         FROM users
                         WHERE email=?
                         """,
-            (user_data["email"],),
+            (user_data['email'],),
         )
 
         result = self.cursor.fetchone()
 
         if result:
-            return "email_repeated"
+            return 'email_repeated'
         else:
             self.cursor.execute(
                 """SELECT telephone_number
@@ -184,6 +204,6 @@ class DataHandler:
             result = self.cursor.fetchone()
 
             if result:
-                return "number_repeated"
+                return 'number_repeated'
             else:
                 return False
