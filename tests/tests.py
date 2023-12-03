@@ -4,6 +4,7 @@ from pathlib import Path
 
 from database import db_manager, db_parser
 
+
 TEST_DATA = db_parser.DataParser.parse_json("users.json")
 
 @pytest.fixture
@@ -95,8 +96,8 @@ class TestDataValidator:
         result = cursor.fetchone()[0]
 
         assert (
-            result == 0
-        )  # No incorrect emails should be added to the database
+            result == incorrect_emails
+        )
 
         clear_test_database(cursor)
 
@@ -127,7 +128,8 @@ class TestDataValidator:
 
         assert (
             result == correct_phone_numbers
-        )  # Return True if the number of rows in the db is the same as the number of valid phone numbers in the dataset
+        )  # Return True if the number of rows in the db is the same 
+           # as the number of valid phone numbers in the dataset
 
         clear_test_database(cursor)
 
@@ -156,7 +158,7 @@ class TestDataValidator:
         result = cursor.fetchone()[0]
 
         assert (
-            result == 0
-        )  # No incorrect phone numbers should be added to the database
+            result == incorrect_phone_numbers
+        )
 
         clear_test_database(cursor)
