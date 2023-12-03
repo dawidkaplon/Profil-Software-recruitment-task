@@ -43,8 +43,10 @@ def authenticate(func):
 
             if password == result:
                 func(self, login, password)
+                
             else:
                 print('\nInvalid Login\n')
+                
 
         except TypeError:
             print('\nInvalid Login\n')
@@ -123,7 +125,7 @@ class Scripts:
             )
             result = db_handler.cursor.fetchone()
             print(
-                f'name: {result[1]}\nemail_address: {result[3]}\ncreated_at: {result[6]}'
+                f'\nname: {result[1]}\nemail_address: {result[3]}\ncreated_at: {result[6]}\n'
             )
 
         else:
@@ -143,18 +145,20 @@ class Scripts:
                 """
             )
             result = db_handler.cursor.fetchall()
-
+            
             for row in result:
                 for age in re.findall(r'\d+', row[0]):
                     children_age.append(int(age))
-
+            
             c = Counter(children_age)
             sorted_age = dict(sorted(c.items(), key=lambda x: x[1]))
             # Sort age of the children by count- ascending
 
+            print()
             for key, value in sorted_age.items():
                 print(f'age: {key}, count: {value}')
-
+            print()
+            
         else:
             print('\nInvalid Login - admin role required\n')
 
@@ -189,9 +193,10 @@ class Scripts:
             children_data = json.loads(result[0])  # Extract the children data
 
             sorted_children = sorted(children_data, key=lambda x: x.get('name', ''))
-
+            print()
             for child in sorted_children:
                 print(f"{child['name']}, {child['age']}")
+            print()
         else:
             print('\nThis user has no children\n')
 
@@ -261,19 +266,20 @@ class Scripts:
                             }
                         )
                         common_phone_numbers.append(user_phone_number)
-                        
+        print()            
         for user in common_users:
             
             children = sorted(
                 user['children'], key=lambda x: x.get('name', '')
             )  # Sort children alphabetically by names
             response = f"{user['firstname']}, {user['phone_number']}: "
-
+            
             for child in children:
                 response += f"{child['name']}, {child['age']}; "
-
+            
             print(response[:-2])
-
+        print()
+        
 
 if __name__ == '__main__':
     db_handler = DataHandler('dbsqlite3')
