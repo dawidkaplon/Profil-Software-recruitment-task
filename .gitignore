@@ -1,3 +1,4 @@
 dbsqlite3
 venv
 task-info.md
+__pycache__
