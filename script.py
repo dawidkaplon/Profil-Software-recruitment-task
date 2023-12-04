@@ -192,7 +192,7 @@ class Scripts:
 
         result = db_handler.cursor.fetchone()
 
-        if result[0] is not False:
+        if result[0] != '[]':
             children_data = json.loads(result[0])  # Extract the children data
 
             sorted_children = sorted(children_data, key=lambda x: x.get('name', ''))
@@ -235,8 +235,7 @@ class Scripts:
         
         # Get the phone number of the logged in user to exclude their details from the output message
         login = c[1]
-        
-        if result is False: 
+        if result == []: 
             print('\nThis user has no children\n')
             return
         
