@@ -112,7 +112,7 @@ class Scripts:
                 """
             )
             result = db_handler.cursor.fetchone()[0]
-            print(int(result))
+            print(f'\n{int(result)}\n')
         else:
             print('\nInvalid Login - admin role required\n')
 
@@ -192,7 +192,7 @@ class Scripts:
 
         result = db_handler.cursor.fetchone()
 
-        if result[0] != '[]':
+        if result[0] is not False:
             children_data = json.loads(result[0])  # Extract the children data
 
             sorted_children = sorted(children_data, key=lambda x: x.get('name', ''))
@@ -236,12 +236,12 @@ class Scripts:
         # Get the phone number of the logged in user to exclude their details from the output message
         login = c[1]
         
-        if result == []: 
+        if result is False: 
             print('\nThis user has no children\n')
             return
         
         for child in result:
-            user_children_age.append(child['age'])  # Get the age of user's each child
+            user_children_age.append(str(child['age']))  # Get the age of user's each child
 
         db_handler.cursor.execute(
             """
@@ -257,7 +257,7 @@ class Scripts:
             user_phone_number = user[1]
 
             for child in children_data:
-                if child['age'] in user_children_age:   
+                if str(child['age']) in user_children_age:   
                     """Check whether any of the children of the checked user 
                     are the same age as the child of the logged in user"""
                     if user_phone_number not in common_phone_numbers and user_phone_number != login:
