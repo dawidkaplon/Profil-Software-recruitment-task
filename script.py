@@ -1,6 +1,8 @@
 import argparse
 import re
 import json
+import html
+
 from sqlite3 import OperationalError
 from collections import Counter
 
@@ -41,7 +43,8 @@ def authenticate(func):
                 )
             result = db_handler.cursor.fetchone()[0]
 
-            if password == result:
+            # Use html module to escape '&amp' chars from database password
+            if html.unescape(password) == html.unescape(result):
                 func(self, login, password)
                 
             else:
