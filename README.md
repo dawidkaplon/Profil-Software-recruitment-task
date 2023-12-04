@@ -54,7 +54,7 @@ pip install -r requirements.txt
 <br>
 
 - **You must be in the same directory as the script.py file to start typing commands**
-
+- **The Login is either the user's e-mail address or his phone number**
 <br>
 <br>
 
