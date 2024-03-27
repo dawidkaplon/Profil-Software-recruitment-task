@@ -1,4 +1,4 @@
-# PROFIL SOFTWARE Recruitment task - Dawid Kapłon
+# Recruitment task - Dawid Kapłon
 
 ## Description
 
@@ -14,7 +14,7 @@ These instructions will help You set up and run the project on Your local machin
 
 ***1. Clone the repo:***
 ```sh
-git clone https://github.com/dawidkaplon/Profil-Software-recruitment-task.git
+git clone $(repo-url)
 ```
 
 <br>
